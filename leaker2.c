@@ -13,6 +13,7 @@
 struct alloc_block_t {
 	void *block;
 	int siz;
+	char tag[256];
 	UT_hash_handle hh;
 };
 
@@ -21,7 +22,7 @@ struct alloc_block_t *table=NULL;
 int numalloc=0, numfree=0;
 
 
-int	allocare(void *block, const int siz);
+int	allocare(void *block, const int siz, const char *tag);
 int	checkare(FILE *fp);
 int	deallocare(const void *block);
 int	empaine(void);
@@ -29,7 +30,7 @@ int	tameio(void);
 
 
 int
-allocare(void *block, const int siz)
+allocare(void *block, const int siz, const char *tag)
 {
 	struct alloc_block_t *p;
 
@@ -40,6 +41,7 @@ allocare(void *block, const int siz)
 	}
 	p->block=block;
 	p->siz=siz;
+	snprintf(p->tag, 256, "%s", tag);
 
 	HASH_ADD_PTR(table, block, p);
 
@@ -94,8 +96,8 @@ tameio(void)
 	j=HASH_COUNT(table);
 	if(j)
 		for(p=table; p; p=p->hh.next)
-			printf("# didn't free block %p of size %d\n",
-				p->block, p->siz
+			printf("# didn't free block %p of size %d (%s)\n",
+				p->block, p->siz, p->tag
 			);
 
 	if(numalloc!=numfree)
@@ -119,7 +121,7 @@ int
 checkare(FILE *fp)
 {
 	char *endptr, *s3, *s4;
-	char sx[256], s1[256], s2[256], s5[256];
+	char sx[256], s1[256], s2[256], s5[256], s6[256], s7[256];
 	void *block;
 	int siz;
 
@@ -131,16 +133,30 @@ checkare(FILE *fp)
 			s3=strstr(sx, KEY_ALLOC);
 			s4=strstr(sx, KEY_FREE);
 			if(s3) {
-				if(3==sscanf(s3, "%s %s %s", s1, s2, s5)) {
+				siz=-42;
+				strcpy(s7, "[Untitled]");
+				if(
+					4==sscanf(s3, "%s %s %s %s",
+						s1, s2, s5, s6
+					)
+				) {
 					block=(void *)
 						strtol(s2, &endptr, 16);
 					siz=atoi(s5);
-					allocare(block, siz);
+					allocare(block, siz, s6);
+				} else if(
+					3==sscanf(s3, "%s %s %s",
+						s1, s2, s5
+					)
+				) {
+					block=(void *)
+						strtol(s2, &endptr, 16);
+					siz=atoi(s5);
+					allocare(block, siz, s7);
 				} else if(2==sscanf(s3, "%s %s", s1, s2)) {
 					block=(void *)
 						strtol(s2, &endptr, 16);
-					siz=-42;
-					allocare(block, siz);
+					allocare(block, siz, s7);
 				}
 			}
 			if(s4)
